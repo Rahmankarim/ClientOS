@@ -33,6 +33,16 @@ const emailTransport =
       })
     : null;
 
+async function connectToDatabaseSafely(context: string) {
+  try {
+    await connectToDatabase();
+    return true;
+  } catch (error) {
+    console.error(`[auth] database connection failed during ${context}:`, error);
+    return false;
+  }
+}
+
 const providers = [
   CredentialsProvider({
     name: 'Agency login',
@@ -51,7 +61,11 @@ const providers = [
         return null;
       }
 
-      await connectToDatabase();
+      const connected = await connectToDatabaseSafely('credentials authorize');
+      if (!connected) {
+        return null;
+      }
+
       const user = await User.findOne({ email });
       console.log('[auth] user lookup result', { found: Boolean(user), id: user?._id?.toString?.() });
 
@@ -122,7 +136,10 @@ export const authOptions: NextAuthOptions = {
         return true;
       }
 
-      await connectToDatabase();
+      const connected = await connectToDatabaseSafely('signIn callback');
+      if (!connected) {
+        return false;
+      }
 
       const existingUser = await User.findOne({ email: user.email.toLowerCase() });
 
@@ -155,14 +172,16 @@ export const authOptions: NextAuthOptions = {
       }
 
       if (hasMongo && token.email) {
-        await connectToDatabase();
-        const dbUser = await User.findOne({ email: token.email.toLowerCase() });
+        const connected = await connectToDatabaseSafely('jwt callback');
+        if (connected) {
+          const dbUser = await User.findOne({ email: token.email.toLowerCase() });
 
-        if (dbUser) {
-          token.name = dbUser.name || token.name;
-          token.role = dbUser.role;
-          token.workspaceId = dbUser.workspaceId ? dbUser.workspaceId.toString() : null;
-          token.sub = dbUser._id.toString();
+          if (dbUser) {
+            token.name = dbUser.name || token.name;
+            token.role = dbUser.role;
+            token.workspaceId = dbUser.workspaceId ? dbUser.workspaceId.toString() : null;
+            token.sub = dbUser._id.toString();
+          }
         }
       }
 
