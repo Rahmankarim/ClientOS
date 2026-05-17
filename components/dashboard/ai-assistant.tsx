@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Wand2, Loader } from 'lucide-react'
@@ -12,6 +13,7 @@ interface AIScope {
 }
 
 export function AIAssistant({ projectId }: { projectId: string }) {
+  const { data: session, status } = useSession()
   const [isGenerating, setIsGenerating] = useState(false)
   const [projectDescription, setProjectDescription] = useState('')
   const [generatedScopes, setGeneratedScopes] = useState<AIScope[]>([])
@@ -19,6 +21,11 @@ export function AIAssistant({ projectId }: { projectId: string }) {
 
   const generateScopeAnalysis = async () => {
     if (!projectDescription.trim()) return
+
+    if (status !== 'authenticated') {
+      setError('Please sign in to use AI features')
+      return
+    }
 
     setIsGenerating(true)
     setError('')
@@ -44,8 +51,11 @@ export function AIAssistant({ projectId }: { projectId: string }) {
           console.error('Failed to read error body', e)
         }
 
-        console.error('analyze-scope error', { status: res.status, body, text })
-        setError((body && body.error) || text || `Failed to generate scope analysis (status ${res.status})`)
+        const statusText = res.statusText || `status ${res.status}`
+        const snippet = text && text.trim().startsWith('<') ? text.trim().slice(0, 200) : text
+
+        console.error('analyze-scope error', { status: res.status, statusText, body, snippet })
+        setError((body && body.error) || snippet || `Failed to generate scope analysis (${statusText})`)
         return
       }
 

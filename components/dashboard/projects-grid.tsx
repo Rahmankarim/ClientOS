@@ -10,8 +10,16 @@ interface Project {
   name: string;
   description?: string;
   status: string;
-  priority: string;
-  dueDate?: string;
+  clientName?: string;
+  clientEmail?: string;
+  deadline?: string | null;
+  taskStats?: {
+    total: number;
+    pending: number;
+    inProgress: number;
+    completed: number;
+    completionRate: number;
+  };
 }
 
 export default function ProjectsGrid({ projects }: { projects: Project[] }) {
@@ -31,20 +39,7 @@ export default function ProjectsGrid({ projects }: { projects: Project[] }) {
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'critical':
-        return 'bg-red-500/10 text-red-500 border border-red-500/30';
-      case 'high':
-        return 'bg-orange-500/10 text-orange-500 border border-orange-500/30';
-      case 'medium':
-        return 'bg-primary/10 text-primary border border-primary/30';
-      case 'low':
-        return 'bg-green-500/10 text-green-500 border border-green-500/30';
-      default:
-        return 'bg-muted text-muted-foreground border border-border/30';
-    }
-  };
+  const formatStatus = (status: string) => status.replace('-', ' ');
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -70,19 +65,38 @@ export default function ProjectsGrid({ projects }: { projects: Project[] }) {
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 <Badge className={`text-xs font-medium ${getStatusColor(project.status)}`}>
-                  {project.status}
+                  {formatStatus(project.status)}
                 </Badge>
-                <Badge className={`text-xs font-medium ${getPriorityColor(project.priority)}`}>
-                  {project.priority}
-                </Badge>
+                {project.taskStats && (
+                  <Badge className="border border-border/30 bg-background/70 text-xs font-medium text-foreground">
+                    {project.taskStats.completed}/{project.taskStats.total} tasks complete
+                  </Badge>
+                )}
               </div>
-              {project.dueDate && (
-                <div className="border-t border-border/30 pt-2">
-                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                    Due: {new Date(project.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </p>
+
+              {project.taskStats && project.taskStats.total > 0 && (
+                <div className="space-y-2 rounded-xl border border-border/40 bg-background/50 p-3">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Completion</span>
+                    <span>{project.taskStats.completionRate}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
+                      style={{ width: `${project.taskStats.completionRate}%` }}
+                    />
+                  </div>
                 </div>
               )}
+
+              <div className="flex items-center justify-between gap-3 border-t border-border/30 pt-2 text-xs text-muted-foreground">
+                <span>{project.clientName || 'Client not set'}</span>
+                {project.deadline ? (
+                  <span>Due {new Date(project.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                ) : (
+                  <span>No deadline</span>
+                )}
+              </div>
             </CardContent>
           </Card>
         </Link>

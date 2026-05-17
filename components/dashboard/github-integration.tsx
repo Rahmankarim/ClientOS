@@ -27,6 +27,7 @@ export function GitHubIntegration({ projectId }: { projectId: string }) {
     `/api/github/repos?projectId=${projectId}`,
     fetcher
   )
+  const [isSyncing, setIsSyncing] = useState(false)
 
   const linkRepository = async () => {
     if (!owner.trim() || !repo.trim()) return
@@ -131,6 +132,39 @@ export function GitHubIntegration({ projectId }: { projectId: string }) {
           ))}
         </div>
       )}
+
+      <div className="mt-4">
+        <div className="flex gap-2">
+          <Button
+            onClick={async () => {
+              setIsSyncing(true)
+              try {
+                const res = await fetch('/api/github/sync', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ projectId }),
+                })
+                const json = await res.json()
+                if (!res.ok) {
+                  console.error('Sync failed', json)
+                } else {
+                  // Refresh tasks/milestones indirectly by reloading
+                  mutateRepos()
+                  window.location.reload()
+                }
+              } catch (err) {
+                console.error('Error syncing GitHub:', err)
+              } finally {
+                setIsSyncing(false)
+              }
+            }}
+            disabled={isSyncing || !(repos && repos.length > 0)}
+            className="w-full"
+          >
+            {isSyncing ? 'Syncing...' : 'Sync Issues & PRs'}
+          </Button>
+        </div>
+      </div>
 
       {(!repos || repos.length === 0) && (
         <p className="text-sm text-muted-foreground text-center py-4">

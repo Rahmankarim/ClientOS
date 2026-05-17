@@ -1,26 +1,22 @@
 // app/page.tsx
-'use client';
+ 'use client'
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 
 export default function Home() {
   const router = useRouter();
   const { data: session, status } = useSession();
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     if (status === 'authenticated') {
       router.replace('/dashboard');
     }
   }, [router, status]);
-
-  if (status === 'loading') {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  }
 
   if (session) {
     return null;
@@ -73,14 +69,19 @@ export default function Home() {
 
         <div className="cosmic-panel lift-in rounded-3xl p-6 sm:p-8" style={{ animationDelay: '120ms' }}>
           <div className="mb-5 overflow-hidden rounded-2xl border border-border/60 bg-background/60 p-2">
-            <Image
-              src="/hero-clientos.svg"
-              alt="ClientOS dashboard preview illustration"
-              width={960}
-              height={720}
-              className="h-auto w-full rounded-xl"
-              priority
-            />
+            {!imageError ? (
+              <img
+                src="/hero-clientos.svg"
+                alt="ClientOS dashboard preview illustration"
+                className="h-auto w-full rounded-xl"
+                loading="eager"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div className="flex h-48 w-full items-center justify-center rounded-xl bg-muted/20 text-sm text-muted-foreground">
+                Dashboard preview
+              </div>
+            )}
           </div>
 
           <div className="mb-5 flex items-center justify-between rounded-xl border border-border/70 bg-background/70 px-4 py-3">

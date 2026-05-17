@@ -56,6 +56,23 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Invalid signup data.', issues: error.flatten() }, { status: 400 });
     }
 
+    const message = error instanceof Error ? error.message : '';
+    const isDatabaseConnectionError =
+      message.includes('MongoServerSelectionError') ||
+      message.includes('MongooseServerSelectionError') ||
+      message.includes('SSL routines') ||
+      message.includes('Could not connect to any servers in your MongoDB Atlas cluster');
+
+    if (isDatabaseConnectionError) {
+      console.error('Signup database connection error:', message || 'connection failed');
+      return Response.json(
+        {
+          error: 'The database is currently unavailable. Check MONGODB_URI and Atlas network access.',
+        },
+        { status: 503 }
+      );
+    }
+
     console.error('Signup error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });
   }

@@ -2,29 +2,53 @@
 import { MongoClient } from 'mongodb';
 
 const uri = process.env.MONGODB_URI;
+const options = {
+  serverSelectionTimeoutMS: 5000,
+  tls: true,
+  retryWrites: true,
+  w: 'majority' as const,
+};
 
-let client;
-let clientPromise: Promise<MongoClient>;
+let client: MongoClient | null = null;
+let pendingClientPromise: Promise<MongoClient> | null = null;
 
-if (uri) {
-  const options = {};
-
-  if (process.env.NODE_ENV === 'development') {
-    if (!global._mongoClientPromise) {
-      client = new MongoClient(uri, options);
-      global._mongoClientPromise = client.connect();
-    }
-    clientPromise = global._mongoClientPromise;
-  } else {
-    client = new MongoClient(uri, options);
-    clientPromise = client.connect();
+function getClientPromise() {
+  if (pendingClientPromise) {
+    return pendingClientPromise;
   }
-} else {
-  clientPromise = Promise.reject(new Error('Invalid/Missing environment variable: "MONGODB_URI"'));
+
+  if (!uri) {
+    pendingClientPromise = Promise.reject(new Error('Invalid/Missing environment variable: "MONGODB_URI"'));
+    return pendingClientPromise;
+  }
+
+  if (!client) {
+    client = new MongoClient(uri, options);
+  }
+
+  pendingClientPromise = client.connect().catch((error) => {
+    pendingClientPromise = null;
+    throw error;
+  });
+
+  return pendingClientPromise;
 }
+
+const clientPromise = new Proxy({} as Promise<MongoClient>, {
+  get(_target, property) {
+    const promise = getClientPromise();
+    const value = promise[property as keyof Promise<MongoClient>];
+
+    if (typeof value === 'function') {
+      return value.bind(promise);
+    }
+
+    return value;
+  },
+}) as Promise<MongoClient>;
 
 export default clientPromise;
 
 declare global {
-  var _mongoClientPromise: Promise<MongoClient>;
+  var _mongoClientPromise: Promise<MongoClient> | null;
 }

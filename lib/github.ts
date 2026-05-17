@@ -19,51 +19,40 @@ export function verifyGitHubWebhook(payload: string, signature: string): boolean
 }
 
 export async function fetchGitHubUser(accessToken: string) {
-  const res = await fetch('https://api.github.com/user', {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: 'application/vnd.github.v3+json',
-    },
-  })
+  const headers: Record<string, string> = { Accept: 'application/vnd.github.v3+json' }
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`
+
+  const res = await fetch('https://api.github.com/user', { headers })
 
   if (!res.ok) throw new Error('Failed to fetch GitHub user')
   return res.json()
 }
 
 export async function fetchGitHubRepo(owner: string, repo: string, accessToken: string) {
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: 'application/vnd.github.v3+json',
-    },
-  })
+  const headers: Record<string, string> = { Accept: 'application/vnd.github.v3+json' }
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`
+
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers })
 
   if (!res.ok) throw new Error('Failed to fetch GitHub repo')
   return res.json()
 }
 
 export async function fetchGitHubIssues(owner: string, repo: string, accessToken: string) {
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues?state=all`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: 'application/vnd.github.v3+json',
-    },
-  })
+  const headers: Record<string, string> = { Accept: 'application/vnd.github.v3+json' }
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`
+
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues?state=all`, { headers })
 
   if (!res.ok) throw new Error('Failed to fetch GitHub issues')
   return res.json()
 }
 
 export async function fetchGitHubPullRequests(owner: string, repo: string, accessToken: string) {
-  const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/pulls?state=all`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: 'application/vnd.github.v3+json',
-      },
-    }
-  )
+  const headers: Record<string, string> = { Accept: 'application/vnd.github.v3+json' }
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`
+
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls?state=all`, { headers })
 
   if (!res.ok) throw new Error('Failed to fetch GitHub PRs')
   return res.json()
@@ -76,13 +65,15 @@ export async function createGitHubIssue(
   body: string,
   accessToken: string
 ) {
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github.v3+json',
+    'Content-Type': 'application/json',
+  }
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`
+
   const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({ title, body }),
   })
 

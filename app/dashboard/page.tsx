@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import ProjectsGrid from '@/components/dashboard/projects-grid';
 import NewProjectDialog from '@/components/dashboard/new-project-dialog';
+import { Badge } from '@/components/ui/badge';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -17,9 +18,11 @@ export default function Dashboard() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const { data: projects, mutate: mutateProjects } = useSWR(
-    status === 'authenticated' ? '/api/projects' : null,
-    fetcher
+
+  const { data: dashboardSummary, mutate: mutateDashboardSummary } = useSWR(
+    status === 'authenticated' ? '/api/dashboard/summary' : null,
+    fetcher,
+    { refreshInterval: 15000 }
   );
 
   useEffect(() => {
@@ -35,6 +38,20 @@ export default function Dashboard() {
   if (!session) {
     return null;
   }
+
+  const projects = dashboardSummary?.projects || [];
+  const metrics = dashboardSummary?.metrics || {
+    totalProjects: 0,
+    activeProjects: 0,
+    reviewProjects: 0,
+    completedProjects: 0,
+    totalTasks: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+    milestoneCount: 0,
+    completionRate: 0,
+  };
+  const recentTasks = dashboardSummary?.recentTasks || [];
 
   return (
     <main className="min-h-screen">
@@ -74,53 +91,118 @@ export default function Dashboard() {
 
       <div className="mx-auto max-w-7xl px-5 py-10 sm:px-6 sm:py-12">
         <div className="space-y-8">
-          <div className="lift-in cosmic-panel rounded-2xl p-6 sm:p-7">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Today</p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              Keep every client update on track.
-            </h2>
-            <p className="mt-3 max-w-3xl text-muted-foreground">
-              Centralize projects, milestones, proposals, and AI-assisted delivery updates in one place.
-            </p>
+          <div className="lift-in cosmic-panel rounded-3xl p-6 sm:p-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-3xl">
+                <Badge className="mb-4 border border-primary/20 bg-primary/10 text-primary">Real-time workspace overview</Badge>
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">Today</p>
+                <h2 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                  Keep every client update on track.
+                </h2>
+                <p className="mt-3 max-w-3xl text-muted-foreground">
+                  Centralize projects, milestones, tasks, and AI-assisted delivery updates in one professional command center.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Projects</p>
+                  <p className="mt-1 text-2xl font-bold text-foreground">{metrics.totalProjects}</p>
+                </div>
+                <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Completed</p>
+                  <p className="mt-1 text-2xl font-bold text-emerald-500">{metrics.completedTasks}</p>
+                </div>
+                <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Progress</p>
+                  <p className="mt-1 text-2xl font-bold text-primary">{metrics.completionRate}%</p>
+                </div>
+                <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Milestones</p>
+                  <p className="mt-1 text-2xl font-bold text-accent">{metrics.milestoneCount}</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Card className="lift-in cosmic-panel">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Projects</CardTitle>
+          {/* Removed duplicate metric cards to avoid repeating counts shown above */}
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <Card className="cosmic-panel lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Live Delivery Snapshot</CardTitle>
+                <CardDescription>What changed recently across your workspace.</CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-4xl font-bold tracking-tight text-foreground">{projects?.length || 0}</p>
+              <CardContent className="space-y-4">
+                <div className="space-y-3 rounded-2xl border border-border/50 bg-background/50 p-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Task completion</span>
+                    <span className="font-medium text-foreground">{metrics.completionRate}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-gradient-to-r from-primary to-accent" style={{ width: `${metrics.completionRate}%` }} />
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 pt-2 text-sm">
+                    <div className="rounded-xl border border-border/40 bg-card/70 p-3">
+                      <p className="text-muted-foreground">Completed</p>
+                      <p className="mt-1 text-lg font-semibold text-emerald-500">{metrics.completedTasks}</p>
+                    </div>
+                    <div className="rounded-xl border border-border/40 bg-card/70 p-3">
+                      <p className="text-muted-foreground">In progress</p>
+                      <p className="mt-1 text-lg font-semibold text-primary">{projects.reduce((sum: number, project: any) => sum + (project.taskStats?.inProgress || 0), 0)}</p>
+                    </div>
+                    <div className="rounded-xl border border-border/40 bg-card/70 p-3">
+                      <p className="text-muted-foreground">Pending</p>
+                      <p className="mt-1 text-lg font-semibold text-accent">{metrics.pendingTasks}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-muted-foreground">Recent Work Items</h3>
+                  <div className="space-y-3">
+                    {recentTasks.length > 0 ? (
+                      recentTasks.map((task: any) => (
+                        <div key={task._id} className="rounded-2xl border border-border/40 bg-background/60 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-semibold text-foreground">{task.title}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Project: {projects.find((project: any) => project._id === task.projectId)?.name || 'Unknown project'}
+                              </p>
+                            </div>
+                            <Badge className="border border-border/30 bg-card/70 text-xs font-medium text-foreground">
+                              {task.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No recent tasks yet.</p>
+                    )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
-            <Card className="lift-in cosmic-panel" style={{ animationDelay: '80ms' }}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Active</CardTitle>
+
+            <Card className="cosmic-panel">
+              <CardHeader>
+                <CardTitle>Workspace Pulse</CardTitle>
+                <CardDescription>Quick operational snapshot.</CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-4xl font-bold tracking-tight text-primary">
-                  {projects?.filter((p: any) => p.status === 'active')?.length || 0}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="lift-in cosmic-panel" style={{ animationDelay: '160ms' }}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">In Scope</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-4xl font-bold tracking-tight text-accent">
-                  {projects?.filter((p: any) => p.status === 'scope')?.length || 0}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="lift-in cosmic-panel" style={{ animationDelay: '240ms' }}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-4xl font-bold tracking-tight text-muted-foreground">
-                  {projects?.filter((p: any) => p.status === 'completed')?.length || 0}
-                </p>
+              <CardContent className="space-y-4 text-sm">
+                <div className="rounded-2xl border border-border/40 bg-background/60 p-4">
+                  <p className="text-muted-foreground">Milestones tracked</p>
+                  <p className="mt-1 text-2xl font-bold text-foreground">{metrics.milestoneCount}</p>
+                </div>
+                <div className="rounded-2xl border border-border/40 bg-background/60 p-4">
+                  <p className="text-muted-foreground">Projects in delivery</p>
+                  <p className="mt-1 text-2xl font-bold text-primary">{metrics.activeProjects + metrics.reviewProjects}</p>
+                </div>
+                <div className="rounded-2xl border border-border/40 bg-background/60 p-4">
+                  <p className="text-muted-foreground">Tasks awaiting completion</p>
+                  <p className="mt-1 text-2xl font-bold text-accent">{metrics.pendingTasks}</p>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -128,11 +210,9 @@ export default function Dashboard() {
           <div>
             <div className="mb-6">
               <h2 className="text-2xl font-bold tracking-tight text-foreground">Your Projects</h2>
-              <p className="text-muted-foreground">
-                Manage and track all your projects in one place
-              </p>
+              <p className="text-muted-foreground">Manage and track all your projects in one place</p>
             </div>
-            {projects ? (
+            {dashboardSummary ? (
               projects.length > 0 ? (
                 <ProjectsGrid projects={projects} />
               ) : (
@@ -170,7 +250,10 @@ export default function Dashboard() {
         <NewProjectDialog
           open={isCreateDialogOpen}
           onOpenChange={setIsCreateDialogOpen}
-          onProjectCreated={() => mutateProjects()}
+          onProjectCreated={() => {
+            // refresh dashboard summary after project created
+            mutateDashboardSummary();
+          }}
         />
       </div>
     </main>

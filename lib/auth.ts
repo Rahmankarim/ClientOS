@@ -11,6 +11,7 @@ import User from '@/models/User';
 import { verifyPassword } from '@/lib/password';
 
 const hasMongo = Boolean(process.env.MONGODB_URI);
+const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build';
 const hasGoogleAuth = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 const hasEmailTransport = Boolean(
   process.env.EMAIL_SERVER_HOST &&
@@ -121,7 +122,7 @@ const providers = [
 ].filter(Boolean) as NonNullable<NextAuthOptions['providers']>[number][];
 
 export const authOptions: NextAuthOptions = {
-  adapter: hasMongo ? MongoDBAdapter(clientPromise) : undefined,
+  adapter: hasMongo && !isBuildTime ? MongoDBAdapter(clientPromise) : undefined,
   session: {
     strategy: 'jwt',
   },
@@ -136,31 +137,36 @@ export const authOptions: NextAuthOptions = {
         return true;
       }
 
-      const connected = await connectToDatabaseSafely('signIn callback');
-      if (!connected) {
-        return false;
-      }
+        try {
+          const connected = await connectToDatabaseSafely('signIn callback');
+          if (!connected) {
+            return true; // Allow signIn to proceed gracefully
+          }
 
-      const existingUser = await User.findOne({ email: user.email.toLowerCase() });
+          const existingUser = await User.findOne({ email: user.email.toLowerCase() });
 
-      if (!existingUser) {
-        const role = account.provider === 'email' ? 'client' : 'agency';
+          if (!existingUser) {
+            const role = account.provider === 'email' ? 'client' : 'agency';
 
-        await User.create({
-          name: user.name || user.email,
-          email: user.email.toLowerCase(),
-          role,
-          workspaceId: null,
-        });
-      } else if (account.provider === 'google' && existingUser.role !== 'agency') {
-        existingUser.role = 'agency';
-        if (!existingUser.name && user.name) {
-          existingUser.name = user.name;
+            await User.create({
+              name: user.name || user.email,
+              email: user.email.toLowerCase(),
+              role,
+              workspaceId: null,
+            });
+          } else if (account.provider === 'google' && existingUser.role !== 'agency') {
+            existingUser.role = 'agency';
+            if (!existingUser.name && user.name) {
+              existingUser.name = user.name;
+            }
+            await existingUser.save();
+          }
+
+          return true;
+        } catch (error) {
+          console.error('[auth] signIn callback error:', error);
+          return true; // Don't crash the auth handler
         }
-        await existingUser.save();
-      }
-
-      return true;
     },
     async jwt({ token, user }) {
       if (user?.id) {
